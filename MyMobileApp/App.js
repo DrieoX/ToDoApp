@@ -9,6 +9,7 @@ import {
   Switch,
   StyleSheet,
   Platform,
+  Modal,
 } from 'react-native';
 import axios from 'axios';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -21,6 +22,8 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentTask, setCurrentTask] = useState(null);
 
   useEffect(() => {
     fetchTasks();
@@ -80,6 +83,38 @@ export default function App() {
       setTasks(tasks.filter((t) => t.id !== id));
     } catch (error) {
       console.error('Error deleting task:', error);
+    }
+  };
+
+  const editTask = (task) => {
+    setIsEditing(true);
+    setCurrentTask(task);
+    setNewTask(task.title);
+    setNewDeadline(new Date(task.deadline));
+  };
+
+  const saveEditedTask = async () => {
+    if (!newTask || !newDeadline) {
+      alert('Please enter both task name and deadline.');
+      return;
+    }
+    const updatedTask = {
+      ...currentTask,
+      title: newTask,
+      deadline: newDeadline.toISOString(),
+    };
+    try {
+      await axios.put(
+        `https://pit4.onrender.com/api/todos/${currentTask.id}/`,
+        updatedTask
+      );
+      setTasks(tasks.map((t) => (t.id === currentTask.id ? updatedTask : t)));
+      setIsEditing(false);
+      setCurrentTask(null);
+      setNewTask('');
+      setNewDeadline(new Date());
+    } catch (error) {
+      console.error('Error updating task:', error);
     }
   };
 
@@ -158,7 +193,7 @@ export default function App() {
           />
         )}
 
-        <Button title="Add Task" onPress={addTask} />
+        <Button title={isEditing ? "Save Changes" : "Add Task"} onPress={isEditing ? saveEditedTask : addTask} />
       </View>
 
       <View style={styles.filterContainer}>
@@ -183,6 +218,7 @@ export default function App() {
                 {item.title} — {new Date(item.deadline).toLocaleString()}
               </Text>
             </TouchableOpacity>
+            <Button title="Edit" onPress={() => editTask(item)} />
             <Button title="Delete" onPress={() => deleteTask(item.id)} />
           </View>
         )}
@@ -195,19 +231,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',          // Light mode bg
+    backgroundColor: '#fff',
   },
   darkContainer: {
-    backgroundColor: '#333',          // Dark mode bg
+    backgroundColor: '#333',
   },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
-    color: '#000',                    // Light mode text
+    color: '#000',
   },
   darkText: {
-    color: '#fff',                    // Dark mode text :contentReference[oaicite:5]{index=5}
+    color: '#fff',
   },
   switchContainer: {
     flexDirection: 'row',
@@ -227,11 +263,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 10,
     paddingLeft: 8,
-    color: '#000',                    // Light mode input text
+    color: '#000',
   },
   darkInput: {
     backgroundColor: '#555',
-    color: '#fff',                    // Dark mode input text
+    color: '#fff',
   },
   dateText: {
     fontSize: 16,
@@ -250,10 +286,11 @@ const styles = StyleSheet.create({
   taskText: {
     fontSize: 16,
     flex: 1,
-    color: '#000',                    // Light mode task text
+    color: '#000',
   },
   completedText: {
     textDecorationLine: 'line-through',
     color: 'gray',
   },
 });
+
